@@ -1,0 +1,59 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/node:latest
+    
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+                - sfdx-6.8.2-local
+      - run:
+          name: Install Salesforce DX
+          command: |
+              openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
+              export SFDX_AUTOUPDATE_DISABLE=true
+              export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+              export SFDX_DOMAIN_RETRY=300
+              npm install sfdx-cli
+              node_modules/sfdx-cli/bin/run --version
+              node_modules/sfdx-cli/bin/run plugins --core
+      - save_cache:
+          key: sfdx-6.8.2-local
+          paths: 
+              - node_modules
+      - run: 
+          name: Create Scratch Org
+          command: |
+              node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
+              node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f config/project-scratch-def.json -a scratch
+      - run:
+          name: Remove Server Key
+          when: always
+          command: |
+              rm assets/server.key
+      - run: 
+          name: Push Source
+          command: |
+             node_modules/sfdx-cli/bin/run force:source:push -u scratch
+      - run:
+          name: Run Apex Tests
+          command: |
+              mkdir ~/apex_tests
+              node_modules/sfdx-cli/bin/run force:apex:test:run -u scratch -c -r human -d ~/apex_tests -w 9999 
+      - run: 
+          name: Push to Codecov.io (Optional Step)
+          command: |
+              cp ~/apex_tests/test-result-codecoverage.json .
+              bash <(curl -s https://codecov.io/bash)
+      - run: 
+          name: Clean Up
+          when: always
+          command: |
+              node_modules/sfdx-cli/bin/run force:org:delete -u scratch -p
+              rm ~/apex_tests/*.txt ~/apex_tests/test-result-7*.json
+      - store_artifacts:
+          path: ~/apex_tests
+      - store_test_results:
+          path: ~/apex_tests
