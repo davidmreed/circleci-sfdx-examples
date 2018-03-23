@@ -12,11 +12,10 @@ jobs:
       - run:
           name: Install Salesforce DX
           command: |
-              openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
               export SFDX_AUTOUPDATE_DISABLE=true
               export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
               export SFDX_DOMAIN_RETRY=300
-              npm install sfdx-cli
+              npm install sfdx-cli@6.8.2
               node_modules/sfdx-cli/bin/run --version
               node_modules/sfdx-cli/bin/run plugins --core
       - save_cache:
@@ -26,6 +25,7 @@ jobs:
       - run: 
           name: Create Scratch Org
           command: |
+              openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
               node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
               node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f config/project-scratch-def.json -a scratch
       - run:

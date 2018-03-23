@@ -9,10 +9,6 @@ jobs:
             keys:
                 - sfdx-6.8.2-local
         - run:
-            name: Decrypt Server Key
-            command: |
-                openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
-        - run:
             name: Install Salesforce DX
             command: |
                 if [ ! -d node_modules/sfdx-cli ]; then
@@ -30,6 +26,7 @@ jobs:
         - run: 
             name: Create Scratch Org
             command: |
+                openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
                 node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
                 echo "Creating scratch org with definition $SCRATCH_DEF"
                 node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f "config/$SCRATCH_DEF" -a scratch
@@ -48,7 +45,7 @@ jobs:
                 mkdir ~/apex_tests
                 node_modules/sfdx-cli/bin/run force:apex:test:run -u scratch -c -r human -d ~/apex_tests -w 9999
         - run: 
-            name: Push to Codecov.io
+            name: Push to Codecov.io (Optional Step)
             command: |
                 cp ~/apex_tests/test-result-codecoverage.json .
                 bash <(curl -s https://codecov.io/bash)
