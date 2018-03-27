@@ -3,7 +3,6 @@ jobs:
   build:
     docker:
       - image: circleci/node:latest
-    
     steps:
       - checkout
       - restore_cache:
@@ -12,12 +11,14 @@ jobs:
       - run:
           name: Install Salesforce DX
           command: |
-              export SFDX_AUTOUPDATE_DISABLE=true
-              export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
-              export SFDX_DOMAIN_RETRY=300
-              npm install sfdx-cli@6.8.2
-              node_modules/sfdx-cli/bin/run --version
-              node_modules/sfdx-cli/bin/run plugins --core
+              if [ ! -d node_modules/sfdx-cli ]; then
+                  export SFDX_AUTOUPDATE_DISABLE=true
+                  export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+                  export SFDX_DOMAIN_RETRY=300
+                  npm install sfdx-cli@6.8.2
+                  node_modules/sfdx-cli/bin/run --version
+                  node_modules/sfdx-cli/bin/run plugins --core
+              fi
       - save_cache:
           key: sfdx-6.8.2-local
           paths: 
@@ -40,20 +41,21 @@ jobs:
       - run:
           name: Run Apex Tests
           command: |
-              mkdir ~/apex_tests
-              node_modules/sfdx-cli/bin/run force:apex:test:run -u scratch -c -r human -d ~/apex_tests -w 9999 
+              mkdir ~/tests
+              mkdir ~/tests/apex
+              node_modules/sfdx-cli/bin/run force:apex:test:run -u scratch -c -r human -d ~/tests/apex -w 9999 
       - run: 
           name: Push to Codecov.io (Optional Step)
           command: |
-              cp ~/apex_tests/test-result-codecoverage.json .
+              cp ~/tests/apex/test-result-codecoverage.json .
               bash <(curl -s https://codecov.io/bash)
       - run: 
           name: Clean Up
           when: always
           command: |
               node_modules/sfdx-cli/bin/run force:org:delete -u scratch -p
-              rm ~/apex_tests/*.txt ~/apex_tests/test-result-7*.json
+              rm ~/tests/apex/*.txt ~/tests/apex/test-result-7*.json
       - store_artifacts:
-          path: ~/apex_tests
+          path: ~/tests
       - store_test_results:
-          path: ~/apex_tests
+          path: ~/tests

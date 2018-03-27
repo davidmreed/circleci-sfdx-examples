@@ -1,6 +1,8 @@
-job-definition: &jobdef
+version: 2
+jobs:
+  build:
     docker:
-        - image: circleci/node:latest
+        - image: circleci/openjdk:latest-node-browsers
     steps:
         - checkout
         - restore_cache:
@@ -24,15 +26,18 @@ job-definition: &jobdef
         - run: 
             name: Create Scratch Org
             command: |
-                openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
+                openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md md5
                 node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
-                echo "Creating scratch org with definition $SCRATCH_DEF"
-                node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f "config/$SCRATCH_DEF" -a scratch
+                node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f config/project-scratch-def.json -a scratch
         - run:
             name: Remove Server Key
             when: always
             command: |
                 rm assets/server.key
+        - run:
+            name: Install Lightning Testing Service
+            command: |
+                node_modules/sfdx-cli/bin/run force:lightning:test:install -t jasmine
         - run: 
             name: Push Source
             command: |
@@ -43,6 +48,11 @@ job-definition: &jobdef
                 mkdir ~/tests
                 mkdir ~/tests/apex
                 node_modules/sfdx-cli/bin/run force:apex:test:run -u scratch -c -r human -d ~/tests/apex -w 9999
+        - run:
+            name: Run Lightning Tests
+            command: | 
+                mkdir ~/tests/lightning
+                node_modules/sfdx-cli/bin/run force:lightning:test:run -d ~/tests/lightning -r human -a septaTrainsTests.app -o
         - run: 
             name: Push to Codecov.io (Optional Step)
             command: |
@@ -58,47 +68,3 @@ job-definition: &jobdef
             path: ~/tests
         - store_test_results:
             path: ~/tests
-
-version: 2
-jobs:
-  static-analysis:
-    docker:
-      - image: circleci/openjdk:latest
-    steps:
-      - checkout
-      - restore_cache:
-          keys: 
-            - pmd-v6.0.1
-      - run:
-          name: Install PMD
-          command: |
-              if [ ! -d pmd-bin-6.0.1 ]; then
-                  curl -L "https://github.com/pmd/pmd/releases/download/pmd_releases/6.0.1/pmd-bin-6.0.1.zip" -o pmd-bin-6.0.1.zip
-                  unzip pmd-bin-6.0.1.zip
-                  rm pmd-bin-6.0.1.zip
-              fi
-      - save_cache:
-          key: pmd-v6.0.1
-          paths: 
-              - pmd-bin-6.0.1
-      - run: 
-          name: Run Static Analysis
-          command: |
-              pmd-bin-6.0.1/bin/run.sh pmd -d . -R $RULESET -f text -l apex -r static-analysis.txt 
-      - store_artifacts:
-          path: static-analysis.txt
-  build-enterprise:
-     <<: *jobdef
-     environment:
-        SCRATCH_DEF: project-scratch-def.json
-  build-developer: 
-     <<: *jobdef
-     environment:
-        SCRATCH_DEF: developer.json
-workflows:
-  version: 2
-  test_and_static:
-    jobs:
-      - build-enterprise
-      - build-developer
-      - static-analysis

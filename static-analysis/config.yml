@@ -42,8 +42,9 @@ jobs:
         - run:
             name: Run Apex Tests
             command: |
-                mkdir ~/apex_tests
-                node_modules/sfdx-cli/bin/run force:apex:test:run -u scratch -c -r human -d ~/apex_tests -w 9999
+                mkdir ~/tests
+                mkdir ~/tests/apex
+                node_modules/sfdx-cli/bin/run force:apex:test:run -u scratch -c -r human -d ~/tests/apex -w 9999
         - run: 
             name: Push to Codecov.io (Optional Step)
             command: |
@@ -54,11 +55,11 @@ jobs:
             when: always
             command: |
                 node_modules/sfdx-cli/bin/run force:org:delete -u scratch -p
-                rm ~/apex_tests/*.txt ~/apex_tests/test-result-7*.json
+                rm ~/tests/apex/*.txt ~/tests/apex/test-result-7*.json
         - store_artifacts:
-            path: ~/apex_tests
+            path: ~/tests
         - store_test_results:
-            path: ~/apex_tests
+            path: ~/tests
   static-analysis:
     docker:
       - image: circleci/openjdk:latest
