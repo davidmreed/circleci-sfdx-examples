@@ -52,7 +52,7 @@ jobs:
             name: Run Lightning Tests
             command: | 
                 mkdir ~/tests/lightning
-                node_modules/sfdx-cli/bin/run force:lightning:test:run -d ~/tests/lightning -r human -a septaTrainsTests.app -o
+                node_modules/sfdx-cli/bin/run force:lightning:test:run -d ~/tests/lightning -r human -a lightningTests.app -o
         - run: 
             name: Push to Codecov.io (Optional Step)
             command: |

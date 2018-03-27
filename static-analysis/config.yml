@@ -48,7 +48,7 @@ jobs:
         - run: 
             name: Push to Codecov.io (Optional Step)
             command: |
-                cp ~/apex_tests/test-result-codecoverage.json .
+                cp ~/tests/apex/test-result-codecoverage.json .
                 bash <(curl -s https://codecov.io/bash)
         - run: 
             name: Clean Up
